@@ -9,14 +9,23 @@
 
 using Grid = std::vector<std::vector<Tile>>;
 
-const std::vector<int> tile_types{ 0, 0b0111, 0b1101, 0b1011, 0b1110 };
+//const std::vector<int> tile_types{ 0b0000, 0b0001, 0b0010, 0b0100, 0b1000 }; //1,2
+//const std::vector<int> tile_types{ 0b0000, 0b1010, 0b0101, 0b1110, 0b1101, 0b1011, 0b0111 }; //1,3,5
+const std::vector<int> tile_types{ 0b0000, 0b1010, 0b0101, 0b1111 }; //1,3,6
 
-int print_grid(Grid& grid, std::ofstream& output)
+const int dimension_x = 2;
+const int dimension_y = 2;
+
+std::ofstream file("C:\\dev\\grid_output.txt");
+
+std::unordered_map<int, int> tile_counts;
+
+void print_grid(Grid& grid, std::ofstream& output)
 {
     if (!output)
     {
         std::cerr << "Could not open file!\n";
-        return 1;
+        return;
     }
 
     for (const auto& row : grid)
@@ -30,13 +39,24 @@ int print_grid(Grid& grid, std::ofstream& output)
     }
 
     output << "\n\n";
+}
 
+int count_bits(int value)
+{
+    int count = 0;
+    while (value)
+    {
+        count += value & 1;
+        value >>= 1;
+    }
+
+    return count;
 }
 
 bool validate_grid(const Grid& grid)
 {
-    const int height = grid.size();
-    const int width = grid[0].size();
+    const int height = static_cast<int>(grid.size());
+    const int width = static_cast<int>(grid[0].size());
 
     for (int y = 0; y < height; ++y)
     {
@@ -45,43 +65,31 @@ bool validate_grid(const Grid& grid)
             Tile tile = grid[y][x];
 
             // Left exit
-            if (tile.exits & 0b0001)
+            if (tile.exits & 0b0001 && x > 0)
             {
-                if (x > 0)
-                {
-                    Tile neighbor = grid[y][x - 1];
-                    if ((neighbor.exits & 0b0100) == 0) return false; // Neighbor missing right
-                }
+                Tile neighbor = grid[y][x - 1];
+                if ((neighbor.exits & 0b0100) == 0) return false; // Neighbor missing right
             }
 
             // Bottom exit
-            if (tile.exits & 0b0010)
+            if (tile.exits & 0b0010 && y + 1 < height)
             {
-                if (y + 1 < height)
-                {
-                    Tile neighbor = grid[y + 1][x];
-                    if ((neighbor.exits & 0b1000) == 0) return false; // Neighbor missing top
-                }
+                Tile neighbor = grid[y + 1][x];
+                if ((neighbor.exits & 0b1000) == 0) return false; // Neighbor missing top
             }
 
             // Right exit
-            if (tile.exits & 0b0100)
+            if (tile.exits & 0b0100 && x + 1 < width)
             {
-                if (x + 1 < width)
-                {
-                    Tile neighbor = grid[y][x + 1];
-                    if ((neighbor.exits & 0b0001) == 0) return false; // Neighbor missing left
-                }
+                Tile neighbor = grid[y][x + 1];
+                if ((neighbor.exits & 0b0001) == 0) return false; // Neighbor missing left
             }
 
             // Top exit
-            if (tile.exits & 0b1000)
+            if (tile.exits & 0b1000 && y > 0)
             {
-                if (y > 0)
-                {
-                    Tile neighbor = grid[y - 1][x];
-                    if ((neighbor.exits & 0b0010) == 0) return false; // Neighbor missing bottom
-                }
+                Tile neighbor = grid[y - 1][x];
+                if ((neighbor.exits & 0b0010) == 0) return false; // Neighbor missing bottom
             }
         }
     }
@@ -94,52 +102,59 @@ bool backtrack_placement_valid(Grid& grid, const int y, const int x)
     Tile tile = grid[y][x];
 
     // Left exit
-    if (tile.exits & 0b0001)
+    if (tile.exits & 0b0001 && x > 0)
     {
-        if (x > 0)
-        {
-            Tile neighbor = grid[y][x - 1];
-            if ((neighbor.exits & 0b0100) == 0) return false; // Neighbor missing right
-        }
+        Tile neighbor = grid[y][x - 1];
+        if ((neighbor.exits & 0b0100) == 0) return false; // Neighbor missing right
     }
 
     // No left exit
-    if (!(tile.exits & 0b0001))
+    if (!(tile.exits & 0b0001) && x > 0)
     {
-        if (x > 0)
-        {
-            Tile neighbor = grid[y][x - 1];
-            if ((neighbor.exits & 0b0100) != 0) return false; // Neighbor right
-        }
+        Tile neighbor = grid[y][x - 1];
+        if ((neighbor.exits & 0b0100) != 0) return false; // Neighbor right
     }
 
     // Top exit
-    if (tile.exits & 0b1000)
+    if (tile.exits & 0b1000 && y > 0)
     {
-        if (y > 0)
-        {
-            Tile neighbor = grid[y - 1][x];
-            if ((neighbor.exits & 0b0010) == 0) return false; // Neighbor missing bottom
-        }
+        Tile neighbor = grid[y - 1][x];
+        if ((neighbor.exits & 0b0010) == 0) return false; // Neighbor missing bottom
     }
 
     // No top exit
-    if (!(tile.exits & 0b1000))
+    if (!(tile.exits & 0b1000) && y > 0)
     {
-        if (y > 0)
-        {
-            Tile neighbor = grid[y - 1][x];
-            if ((neighbor.exits & 0b0010) != 0) return false; // Neighbor bottom
-        }
+        Tile neighbor = grid[y - 1][x];
+        if ((neighbor.exits & 0b0010) != 0) return false; // Neighbor bottom
     }
 
     return true;
+}
+
+void change_tile_counts(int old_tile, int new_tile)
+{
+    // Decrement old tile count, but not below 0
+    auto it = tile_counts.find(count_bits(old_tile));
+    if (it != tile_counts.end() && it->second > 0) {
+        --it->second;
+    }
+
+    // Increment new tile count (default is 0 if not present)
+    ++tile_counts[count_bits(new_tile)];
 }
 
 void backtrack(int index, const int W, const int H, Grid& grid, int& valid_count, std::ofstream& file)
 {
     if (index == W * H)
     {
+        //Check if we use at least one of each tile
+        for (const auto& [tile, count] : tile_counts)
+        {
+            if (count == 0)
+                return;
+        }
+
         // All tiles placed successfully
         print_grid(grid, file);
         //file.flush(); //giga slow
@@ -154,6 +169,7 @@ void backtrack(int index, const int W, const int H, Grid& grid, int& valid_count
         int index_y = index / W;
         int index_x = index % W;
 
+        change_tile_counts(grid[index_y][index_x].exits, tile_types[tile]);
 
         grid[index_y][index_x].exits = tile_types[tile];
         if (backtrack_placement_valid(grid, index_y, index_x))
@@ -163,9 +179,9 @@ void backtrack(int index, const int W, const int H, Grid& grid, int& valid_count
     }
 }
 
-std::vector<std::vector<Tile>> init_grid(int width, int height)
+std::vector<std::vector<Tile>> init_grid(int width, int height, int starting_type)
 {
-    return std::vector<std::vector<Tile>>(height, std::vector<Tile>(width, Tile()));
+    return std::vector<std::vector<Tile>>(height, std::vector<Tile>(width, Tile(starting_type)));
 }
 
 // https://stackoverflow.com/a/101613/3738557
@@ -188,14 +204,19 @@ unsigned long long int ipow(int base, int exp)
 
 int main()
 {
-    std::ofstream file("C:\\dev\\grid_output.txt");
+    for (auto& t : tile_types)
+    {
+        tile_counts[count_bits(t)] = 0;
+
+    }
 
     int valid = 0;
 
-    const int dimension_x = 4;
-    const int dimension_y = 4;
+    tile_counts[0] = dimension_x * dimension_y;
 
-    Grid grid = init_grid(dimension_x, dimension_y);
+    int starting_type = tile_types[0];
+
+    Grid grid = init_grid(dimension_x, dimension_y, starting_type);
 
     backtrack(0, dimension_x, dimension_y, grid, valid, file);
 

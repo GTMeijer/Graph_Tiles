@@ -21,7 +21,7 @@ public:
 
     }
 
-    uint8_t exits;
+    int exits;
 
     uint8_t rotate_tile(int times_clockwise_90)
     {
