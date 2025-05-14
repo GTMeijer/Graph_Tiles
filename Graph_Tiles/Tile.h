@@ -10,6 +10,7 @@ class Tile
 public:
 
     static const std::unordered_map<int, const char*> tile_strings;
+    static const std::unordered_map<int, int> tile_ids;
 
     explicit Tile(int exits) : exits(exits)
     {

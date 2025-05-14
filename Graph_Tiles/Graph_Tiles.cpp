@@ -9,17 +9,20 @@
 
 using Grid = std::vector<std::vector<Tile>>;
 
-//const std::vector<int> tile_types{ 0b0000, 0b0001, 0b0010, 0b0100, 0b1000 }; //1,2
-//const std::vector<int> tile_types{ 0b0000, 0b1010, 0b0101, 0b1110, 0b1101, 0b1011, 0b0111 }; //1,3,5
-const std::vector<int> tile_types{ 0b0000, 0b1010, 0b0101, 0b1111 }; //1,3,6
+//std::vector<int> tile_types{ 0b0000, 0b0001, 0b0010, 0b0100, 0b1000 }; //0,1
+//std::vector<int> tile_types{ 0b0000, 0b1010, 0b0101, 0b1110, 0b1101, 0b1011, 0b0111 }; //0,2,4
+//std::vector<int> tile_types{ 0b0000, 0b1010, 0b0101, 0b1111 }; //0,2,5
+std::vector<int> tile_types{ 0b0000, 0b0011,0b0110,0b1100,0b1001,0b1110,0b1101,0b1011,0b0111 }; //0,3,4
 
-const int dimension_x = 11;
-const int dimension_y = 11;
+int dimension_x = 4;
+int dimension_y = 5;
 
 uint64_t total_configs = static_cast<uint64_t>(std::pow(tile_types.size(), dimension_x * dimension_y));
 uint64_t call_counter = 0;
 
+std::unordered_map<int, int> tile_type_to_index;
 std::unordered_map<int, int> tile_counts;
+std::unordered_map<int, int> min_counts;
 
 void print_grid(const Grid& grid, std::ofstream& output)
 {
@@ -40,6 +43,26 @@ void print_grid(const Grid& grid, std::ofstream& output)
     }
 
     output << "\n\n";
+
+    output.flush();
+}
+
+void calculate_progress(const Grid& grid)
+{
+    uint64_t current_progress = tile_type_to_index[grid[0][0].exits];
+
+    uint64_t total = tile_types.size();
+
+    //for (size_t x = 0; x < grid[0].size(); x++)
+    //{
+    //    current_progress *= tile_type_to_index[grid[0][x].exits] + 1;
+    //}
+
+    //uint64_t total = pow(tile_types.size(), dimension_x);
+
+    std::cout << current_progress << "/" << total << std::endl;
+
+
 }
 
 int count_bits(int value)
@@ -52,6 +75,38 @@ int count_bits(int value)
     }
 
     return count;
+}
+
+bool can_still_meet_min_counts(int remaining_spaces)
+{
+    int total_required = 0;
+
+    for (const auto& [tile_type, required] : min_counts)
+    {
+        auto it = tile_counts.find(tile_type);
+        int current = (it != tile_counts.end()) ? it->second : 0;
+
+        if (required > current)
+            total_required += (required - current);
+    }
+
+    return total_required <= remaining_spaces;
+}
+
+bool check_min_counts()
+{
+    for (const auto& [tile_type, required] : min_counts)
+    {
+        auto it = tile_counts.find(tile_type);
+        int current = (it != tile_counts.end()) ? it->second : 0;
+
+        if (current < required)
+        {
+            return false;
+        }
+    }
+
+    return true;
 }
 
 bool backtrack_placement_valid(Grid& grid, const int y, const int x)
@@ -86,42 +141,40 @@ bool backtrack_placement_valid(Grid& grid, const int y, const int x)
         if ((neighbor.exits & 0b0010) != 0) return false; // Neighbor bottom
     }
 
+    // Check if min tile count is still possible
+    int remaining_open_tiles = (dimension_x * dimension_y) - (y * dimension_x + x + 1);
+    if (!can_still_meet_min_counts(remaining_open_tiles))
+    {
+        return false;
+    }
+
     return true;
 }
 
 void change_tile_counts(int old_tile, int new_tile)
 {
     // Decrement old tile count, but not below 0
-    auto it = tile_counts.find(count_bits(old_tile));
+    auto it = tile_counts.find(Tile::tile_ids.at(old_tile));
     if (it != tile_counts.end() && it->second > 0) {
         --it->second;
     }
 
     // Increment new tile count (default is 0 if not present)
-    ++tile_counts[count_bits(new_tile)];
+    ++tile_counts[Tile::tile_ids.at(new_tile)];
 }
 
 void backtrack(int index, const int W, const int H, Grid& grid, int& valid_count, std::ofstream& file)
 {
-    call_counter++;
-    if (call_counter % 100000 == 0)
-    {
-        double percent = (100.0 * call_counter) / total_configs;
-        std::cout << "Checked: " << call_counter << " (" << percent << "%)\n";
-    }
-
     if (index == W * H)
     {
-        //Check if we use at least one of each tile
-        for (const auto& [tile, count] : tile_counts)
+        if (!check_min_counts())
         {
-            if (count == 0)
-                return;
+            return;
         }
 
         // All tiles placed successfully
         print_grid(grid, file);
-        //file.flush(); //giga slow
+
 
         valid_count++;
 
@@ -141,6 +194,11 @@ void backtrack(int index, const int W, const int H, Grid& grid, int& valid_count
             backtrack(index + 1, W, H, grid, valid_count, file);
         }
     }
+
+    if (index == 0)
+    {
+        calculate_progress(grid);
+    }
 }
 
 std::vector<std::vector<Tile>> init_grid(int width, int height, int starting_type)
@@ -148,33 +206,23 @@ std::vector<std::vector<Tile>> init_grid(int width, int height, int starting_typ
     return std::vector<std::vector<Tile>>(height, std::vector<Tile>(width, Tile(starting_type)));
 }
 
-// https://stackoverflow.com/a/101613/3738557
-unsigned long long int ipow(int base, int exp)
-{
-    unsigned long long int result = 1;
-    unsigned long long int lbase = base;
-    for (;;)
-    {
-        if (exp & 1)
-            result *= lbase;
-        exp >>= 1;
-        if (!exp)
-            break;
-        lbase *= lbase;
-    }
-
-    return result;
-}
 
 int main()
 {
     std::ofstream file("C:\\dev\\grid_output.txt");
 
-    for (auto& t : tile_types)
+    for (int t : tile_types)
     {
-        tile_counts[count_bits(t)] = 0;
-
+        tile_counts[Tile::tile_ids.at(t)] = 0;
     }
+
+    for (int i = 0; i < tile_types.size(); i++)
+    {
+        tile_type_to_index[tile_types[i]] = i;
+    }
+
+    //Minimal number of each tile type in the solution (0 index)
+    min_counts = { { 0, 1 }, { 3, 10 }, { 4,9 } };
 
     int valid = 0;
 
@@ -188,7 +236,6 @@ int main()
 
     if (valid >= 0)
     {
-        //std::cout << "Number of valid configurations: " << valid << "/" << ipow(tile_types.size(), dimension_x * dimension_y) << std::endl;
         std::cout << "Number of valid configurations: " << valid << std::endl;
     }
     else
