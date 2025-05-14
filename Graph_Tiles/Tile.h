@@ -16,6 +16,11 @@ public:
 
     }
 
+    Tile() : exits(0)
+    {
+
+    }
+
     uint8_t exits;
 
     uint8_t rotate_tile(int times_clockwise_90)

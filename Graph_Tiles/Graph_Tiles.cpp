@@ -110,33 +110,120 @@ bool validate_grid(const Grid& grid)
     return true;
 }
 
+bool backtrack_placement_valid(Grid& grid, const int y, const int x)
+{
+    Tile tile = grid[y][x];
+
+    // Left exit
+    if (tile.exits & 0b0001)
+    {
+        if (x > 0)
+        {
+            Tile neighbor = grid[y][x - 1];
+            if ((neighbor.exits & 0b0100) == 0) return false; // Neighbor missing right
+        }
+    }
+
+    // No left exit
+    if (!(tile.exits & 0b0001))
+    {
+        if (x > 0)
+        {
+            Tile neighbor = grid[y][x - 1];
+            if ((neighbor.exits & 0b0100) != 0) return false; // Neighbor right
+        }
+    }
+
+    // Top exit
+    if (tile.exits & 0b1000)
+    {
+        if (y > 0)
+        {
+            Tile neighbor = grid[y - 1][x];
+            if ((neighbor.exits & 0b0010) == 0) return false; // Neighbor missing bottom
+        }
+    }
+
+    // No top exit
+    if (!(tile.exits & 0b1000))
+    {
+        if (y > 0)
+        {
+            Tile neighbor = grid[y - 1][x];
+            if ((neighbor.exits & 0b0010) != 0) return false; // Neighbor bottom
+        }
+    }
+
+    return true;
+}
+
+void backtrack(int index, const int W, const int H, Grid& grid, std::ofstream& file)
+{
+    if (index == W * H)
+    {
+        // All tiles placed successfully
+        print_grid(grid, file);
+        file.flush();
+        return;
+    }
+
+    for (int tile = 0; tile < 16; ++tile)
+    {
+        int index_y = index / W;
+        int index_x = index % W;
+
+
+        grid[index_y][index_x].exits = tile;
+        if (backtrack_placement_valid(grid, index_y, index_x))
+        {
+            backtrack(index + 1, W, H, grid, file);
+        }
+        // grid[index] = 0; // optional reset
+    }
+}
+
+std::vector<std::vector<Tile>> init_grid(int width, int height)
+{
+    return std::vector<std::vector<Tile>>(height, std::vector<Tile>(width, Tile()));
+}
+
 int main()
 {
+
+
+
     std::ofstream file("grid_output.txt");
     int tile_types = 16;
 
     int valid = 0;
 
-    for (int a = 0; a < 16; ++a)
-    {
-        std::cout << a << std::endl;
-        for (int b = 0; b < 16; ++b)
-        {
-            for (int c = 0; c < 16; ++c)
-            {
-                for (int d = 0; d < 16; ++d)
-                {
-                    std::vector<int> tiles{ a,b,c,d };
-                    Grid g = generate_grid(tiles);
-                    if (validate_grid(g))
-                    {
-                        print_grid(g, file);
-                        //file.flush();
-                    }
-                }
-            }
-        }
-    }
+    const int dimension_x = 2;
+    const int dimension_y = 2;
+
+    Grid grid = init_grid(dimension_x, dimension_y);
+
+    backtrack(0, dimension_x, dimension_y, grid, file);
+
+    //for (int a = 0; a < 16; ++a)
+    //{
+    //    std::cout << a << std::endl;
+    //    for (int b = 0; b < 16; ++b)
+    //    {
+    //        for (int c = 0; c < 16; ++c)
+    //        {
+    //            for (int d = 0; d < 16; ++d)
+    //            {
+    //                std::vector<int> tiles{ a,b,c,d };
+    //                Grid g = generate_grid(tiles);
+    //                if (validate_grid(g))
+    //                {
+    //                    print_grid(g, file);
+    //                    //file.flush();
+    //                }
+    //            }
+    //        }
+    //    }
+    //}
 
     file.close();
 }
