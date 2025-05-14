@@ -5,15 +5,6 @@
 #include <unordered_map>
 #include <map>
 
-enum class Orientation
-{
-    Up = 0,
-    Left = 1,
-    Down = 2,
-    Right = 3
-};
-
-
 class Tile
 {
 public:
@@ -24,8 +15,6 @@ public:
     {
 
     }
-
-    Orientation orientation;
 
     uint8_t exits;
 
