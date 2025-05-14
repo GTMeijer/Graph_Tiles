@@ -16,11 +16,10 @@ const std::vector<int> tile_types{ 0b0000, 0b1010, 0b0101, 0b1111 }; //1,3,6
 const int dimension_x = 2;
 const int dimension_y = 2;
 
-std::ofstream file("C:\\dev\\grid_output.txt");
 
 std::unordered_map<int, int> tile_counts;
 
-void print_grid(Grid& grid, std::ofstream& output)
+void print_grid(const Grid& grid, std::ofstream& output)
 {
     if (!output)
     {
@@ -51,50 +50,6 @@ int count_bits(int value)
     }
 
     return count;
-}
-
-bool validate_grid(const Grid& grid)
-{
-    const int height = static_cast<int>(grid.size());
-    const int width = static_cast<int>(grid[0].size());
-
-    for (int y = 0; y < height; ++y)
-    {
-        for (int x = 0; x < width; ++x)
-        {
-            Tile tile = grid[y][x];
-
-            // Left exit
-            if (tile.exits & 0b0001 && x > 0)
-            {
-                Tile neighbor = grid[y][x - 1];
-                if ((neighbor.exits & 0b0100) == 0) return false; // Neighbor missing right
-            }
-
-            // Bottom exit
-            if (tile.exits & 0b0010 && y + 1 < height)
-            {
-                Tile neighbor = grid[y + 1][x];
-                if ((neighbor.exits & 0b1000) == 0) return false; // Neighbor missing top
-            }
-
-            // Right exit
-            if (tile.exits & 0b0100 && x + 1 < width)
-            {
-                Tile neighbor = grid[y][x + 1];
-                if ((neighbor.exits & 0b0001) == 0) return false; // Neighbor missing left
-            }
-
-            // Top exit
-            if (tile.exits & 0b1000 && y > 0)
-            {
-                Tile neighbor = grid[y - 1][x];
-                if ((neighbor.exits & 0b0010) == 0) return false; // Neighbor missing bottom
-            }
-        }
-    }
-
-    return true;
 }
 
 bool backtrack_placement_valid(Grid& grid, const int y, const int x)
@@ -204,6 +159,8 @@ unsigned long long int ipow(int base, int exp)
 
 int main()
 {
+    std::ofstream file("C:\\dev\\grid_output.txt");
+
     for (auto& t : tile_types)
     {
         tile_counts[count_bits(t)] = 0;
