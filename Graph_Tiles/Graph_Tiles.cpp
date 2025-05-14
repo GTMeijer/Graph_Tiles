@@ -9,6 +9,8 @@
 
 using Grid = std::vector<std::vector<Tile>>;
 
+const std::vector<int> tile_types{ 0, 0b0111, 0b1101, 0b1011, 0b1110 };
+
 int print_grid(Grid& grid, std::ofstream& output)
 {
     if (!output)
@@ -16,7 +18,6 @@ int print_grid(Grid& grid, std::ofstream& output)
         std::cerr << "Could not open file!\n";
         return 1;
     }
-
 
     for (const auto& row : grid)
     {
@@ -157,28 +158,30 @@ bool backtrack_placement_valid(Grid& grid, const int y, const int x)
     return true;
 }
 
-void backtrack(int index, const int W, const int H, Grid& grid, std::ofstream& file)
+void backtrack(int index, const int W, const int H, Grid& grid, int& valid_count, std::ofstream& file)
 {
     if (index == W * H)
     {
         // All tiles placed successfully
         print_grid(grid, file);
-        file.flush();
+        //file.flush(); //giga slow
+
+        valid_count++;
+
         return;
     }
 
-    for (int tile = 0; tile < 16; ++tile)
+    for (int tile = 0; tile < tile_types.size(); ++tile)
     {
         int index_y = index / W;
         int index_x = index % W;
 
 
-        grid[index_y][index_x].exits = tile;
+        grid[index_y][index_x].exits = tile_types[tile];
         if (backtrack_placement_valid(grid, index_y, index_x))
         {
-            backtrack(index + 1, W, H, grid, file);
+            backtrack(index + 1, W, H, grid, valid_count, file);
         }
-        // grid[index] = 0; // optional reset
     }
 }
 
@@ -192,17 +195,20 @@ int main()
 
 
 
-    std::ofstream file("grid_output.txt");
+    std::ofstream file("C:\\dev\\grid_output.txt");
     int tile_types = 16;
 
     int valid = 0;
 
-    const int dimension_x = 2;
-    const int dimension_y = 2;
+    const int dimension_x = 4;
+    const int dimension_y = 4;
 
     Grid grid = init_grid(dimension_x, dimension_y);
 
-    backtrack(0, dimension_x, dimension_y, grid, file);
+    backtrack(0, dimension_x, dimension_y, grid, valid, file);
+
+
+    std::cout << "Number of valid configurations: " << valid << "/" <<  << std::endl;
 
     //for (int a = 0; a < 16; ++a)
     //{
