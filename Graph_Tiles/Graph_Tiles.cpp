@@ -13,9 +13,11 @@ using Grid = std::vector<std::vector<Tile>>;
 //const std::vector<int> tile_types{ 0b0000, 0b1010, 0b0101, 0b1110, 0b1101, 0b1011, 0b0111 }; //1,3,5
 const std::vector<int> tile_types{ 0b0000, 0b1010, 0b0101, 0b1111 }; //1,3,6
 
-const int dimension_x = 2;
-const int dimension_y = 2;
+const int dimension_x = 11;
+const int dimension_y = 11;
 
+uint64_t total_configs = static_cast<uint64_t>(std::pow(tile_types.size(), dimension_x * dimension_y));
+uint64_t call_counter = 0;
 
 std::unordered_map<int, int> tile_counts;
 
@@ -101,6 +103,13 @@ void change_tile_counts(int old_tile, int new_tile)
 
 void backtrack(int index, const int W, const int H, Grid& grid, int& valid_count, std::ofstream& file)
 {
+    call_counter++;
+    if (call_counter % 100000 == 0)
+    {
+        double percent = (100.0 * call_counter) / total_configs;
+        std::cout << "Checked: " << call_counter << " (" << percent << "%)\n";
+    }
+
     if (index == W * H)
     {
         //Check if we use at least one of each tile
